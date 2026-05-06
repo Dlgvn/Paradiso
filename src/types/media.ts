@@ -52,3 +52,30 @@ export const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   book: 'Books',
   series: 'Series',
 }
+
+export const STATUSES_BY_TYPE: Record<MediaType, MediaStatus[]> = {
+  movie: ['watchlist', 'completed'],
+  series: ['watchlist', 'watching', 'completed', 'dropped'],
+  book: ['watchlist', 'watching', 'completed', 'dropped'],
+}
+
+export const STATUS_LABELS_BY_TYPE: Record<MediaType, Record<MediaStatus, string>> = {
+  movie: {
+    watchlist: 'Watchlist',
+    watching: 'Watching',
+    completed: 'Completed',
+    dropped: 'Dropped',
+  },
+  series: {
+    watchlist: 'Watchlist',
+    watching: 'Watching',
+    completed: 'Completed',
+    dropped: 'Dropped',
+  },
+  book: {
+    watchlist: 'Want to Read',
+    watching: 'Reading',
+    completed: 'Read',
+    dropped: 'Dropped',
+  },
+}
