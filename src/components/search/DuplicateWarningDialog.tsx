@@ -17,6 +17,7 @@ interface DuplicateWarningDialogProps {
   onAddAnyway: () => void
   existingStatus: MediaStatus
   itemTitle: string
+  mediaType?: string
 }
 
 export function DuplicateWarningDialog({
