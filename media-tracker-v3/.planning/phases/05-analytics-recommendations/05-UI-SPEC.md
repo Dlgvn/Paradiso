@@ -54,14 +54,14 @@ Exceptions: Nav icon touch targets remain at 48px (w-12 h-12) per existing Sideb
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px | 400 (regular) | 1.5 |
-| Label | 12px | 500 (medium) | 1.4 |
+| Label | 12px | 400 (regular) | 1.4 |
 | Heading | 20px | 600 (semibold) | 1.2 |
-| Display | 28px | 700 (bold) | 1.1 |
+| Display | 28px | 600 (semibold) | 1.1 |
 
 **Applied to this phase:**
-- Page title "Your Stats" — Display (28px / 700)
+- Page title "Your Stats" — Display (28px / 600)
 - Chart section titles ("Completed by Month", "Genre Breakdown", "Rating Distribution") — Heading (20px / 600)
-- Chart axis labels, legend items, recommendation card metadata — Label (12px / 500)
+- Chart axis labels, legend items, recommendation card metadata — Label (12px / 400)
 - Recommendation reason string ("Because you rated X highly") — Body (14px / 400), color: `accent-silver` (#a8b4cc)
 - Empty state body — Body (14px / 400)
 
