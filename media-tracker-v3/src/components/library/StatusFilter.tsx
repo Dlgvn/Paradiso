@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { MEDIA_STATUSES, STATUS_LABELS } from '@/types/media'
+import { STATUSES_BY_TYPE, STATUS_LABELS_BY_TYPE } from '@/types/media'
 import type { MediaStatus, MediaType } from '@/types/media'
 
 interface StatusFilterProps {
@@ -9,7 +9,7 @@ interface StatusFilterProps {
   mediaType: MediaType
 }
 
-export function StatusFilter({ activeStatus }: StatusFilterProps) {
+export function StatusFilter({ activeStatus, mediaType }: StatusFilterProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -19,10 +19,13 @@ export function StatusFilter({ activeStatus }: StatusFilterProps) {
     router.push(`?${params.toString()}`)
   }
 
+  const statuses = STATUSES_BY_TYPE[mediaType]
+  const labels = STATUS_LABELS_BY_TYPE[mediaType]
+
   return (
     <div className="w-full overflow-x-auto">
       <div className="flex gap-2 h-[24px] min-w-max">
-        {MEDIA_STATUSES.map((status) => {
+        {statuses.map((status) => {
           const isActive = status === activeStatus
           return (
             <button
@@ -34,7 +37,7 @@ export function StatusFilter({ activeStatus }: StatusFilterProps) {
                   : 'border-transparent text-[#f1f5f9]/60 hover:text-[#f1f5f9]/80'
               }`}
             >
-              {STATUS_LABELS[status]}
+              {labels[status]}
             </button>
           )
         })}

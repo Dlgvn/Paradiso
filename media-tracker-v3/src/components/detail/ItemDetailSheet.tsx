@@ -13,7 +13,7 @@ import type { MediaItem, MediaStatus } from '@/types/media'
 import { STATUS_LABELS_BY_TYPE, STATUSES_BY_TYPE } from '@/types/media'
 
 const STATUS_COLORS: Record<MediaStatus, string> = {
-  watchlist: 'bg-[#94a3b8]/20 text-[#94a3b8] border border-[#94a3b8]/30',
+  watchlist: 'bg-[#3b82f6]/20 text-[#3b82f6] border border-[#3b82f6]/30',
   watching: 'bg-[#3b82f6]/20 text-[#3b82f6] border border-[#3b82f6]/30',
   completed: 'bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/30',
   dropped: 'bg-[#6b7280]/20 text-[#6b7280] border border-[#6b7280]/30',
