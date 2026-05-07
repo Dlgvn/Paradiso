@@ -109,6 +109,11 @@ export function RecommendationsSection() {
             title: selected.title,
             year: selected.year,
             posterUrl: selected.posterUrl,
+            genre: selected.genre,
+            director: selected.director,
+            author: selected.author,
+            plot: selected.plot,
+            externalRating: selected.externalRating,
           }}
         />
       )}

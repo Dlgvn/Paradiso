@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { searchOmdb } from '@/lib/api/omdb'
+import { searchOmdb, getOmdbDetails } from '@/lib/api/omdb'
 import { searchOpenLibrary, getOlCoverUrl } from '@/lib/api/open-library'
 import { topGenreWithReason } from '@/lib/analytics'
 import type { MediaType } from '@/types/media'
@@ -13,6 +13,11 @@ export interface RecommendationCandidate {
   year: string | null
   posterUrl: string | null
   reason: string
+  genre: string | null
+  director: string | null
+  author: string | null
+  plot: string | null
+  externalRating: string | null
 }
 
 export type GetRecommendationsResult =
@@ -54,20 +59,34 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
 
   const candidates: RecommendationCandidate[] = []
 
-  // Up to 3 movie candidates
+  // Up to 3 movie candidates — collect imdbIDs first, then fetch details in parallel
+  const movieImdbIds: string[] = []
   if (movieResults.status === 'fulfilled' && !movieResults.value.error) {
     for (const r of movieResults.value.results) {
       if (existingIds.has(r.imdbID)) continue
-      candidates.push({
-        externalId: r.imdbID,
-        mediaType: 'movie',
-        title: r.Title,
-        year: r.Year || null,
-        posterUrl: r.Poster && r.Poster !== 'N/A' ? r.Poster : null,
-        reason: info.reason,
-      })
-      if (candidates.filter(c => c.mediaType === 'movie').length >= 3) break
+      movieImdbIds.push(r.imdbID)
+      if (movieImdbIds.length >= 3) break
     }
+  }
+
+  const movieDetails = await Promise.allSettled(movieImdbIds.map(id => getOmdbDetails(id)))
+
+  for (const result of movieDetails) {
+    if (result.status !== 'fulfilled') continue
+    const d = result.value
+    candidates.push({
+      externalId: d.imdbId,
+      mediaType: d.type,
+      title: d.title ?? '',
+      year: d.year,
+      posterUrl: d.posterUrl,
+      reason: info.reason,
+      genre: d.genre,
+      director: d.director,
+      author: null,
+      plot: d.plot,
+      externalRating: d.imdbRating,
+    })
   }
 
   // Up to 2 book candidates
@@ -81,6 +100,11 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
         year: r.first_publish_year ? String(r.first_publish_year) : null,
         posterUrl: r.cover_i ? getOlCoverUrl(r.cover_i, 'M') : null,
         reason: info.reason,
+        genre: null,
+        director: null,
+        author: r.author_name?.[0] ?? null,
+        plot: null,
+        externalRating: null,
       })
       if (candidates.filter(c => c.mediaType === 'book').length >= 2) break
     }
