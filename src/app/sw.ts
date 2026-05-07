@@ -46,3 +46,22 @@ const serwist = new Serwist({
 })
 
 serwist.addEventListeners()
+
+// --- Background Sync (PWA-04) ---------------------------------------------
+// Tag matches BG_SYNC_TAG in src/components/layout/SyncEngineMount.tsx. When
+// the browser fires this sync event (Chromium only), we relay to all open
+// clients via postMessage — they call replaySyncQueue with the live db handle.
+// We CANNOT call Dexie or Server Actions directly from the SW: Dexie expects
+// a window context and Server Actions require the Next.js runtime.
+self.addEventListener('sync', (event: Event) => {
+  const syncEvent = event as Event & { tag?: string; waitUntil: (p: Promise<unknown>) => void }
+  if (syncEvent.tag !== 'sync-library-queue') return
+  syncEvent.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of clients) {
+        client.postMessage({ type: 'replay-sync-queue' })
+      }
+    })(),
+  )
+})
