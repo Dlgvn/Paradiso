@@ -84,6 +84,7 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
   }
 
   const ratingStars = item.user_rating ? Math.round(item.user_rating / 2) : 0
+  const [ratingHovered, setRatingHovered] = useState(false)
 
   return (
     <div
@@ -128,15 +129,23 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
         )}
 
         {/* Star rating */}
-        <div className="flex items-center gap-0.5 mb-2">
+        <div
+          className="flex items-center gap-0.5 mb-2"
+          onMouseEnter={() => item.user_rating && setRatingHovered(true)}
+          onMouseLeave={() => setRatingHovered(false)}
+        >
           {item.user_rating ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                size={14}
-                className={i < ratingStars ? 'text-[#eab308] fill-[#eab308]' : 'text-[#94a3b8]'}
-              />
-            ))
+            ratingHovered ? (
+              <span className="text-[13px] font-[600] text-[#eab308]">{item.user_rating}/10</span>
+            ) : (
+              Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  size={14}
+                  className={i < ratingStars ? 'text-[#eab308] fill-[#eab308]' : 'text-[#94a3b8]'}
+                />
+              ))
+            )
           ) : (
             <span className="text-[11px] text-[#94a3b8]">Not rated</span>
           )}
