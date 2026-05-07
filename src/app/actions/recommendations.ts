@@ -70,7 +70,7 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
     for (const r of movieSearchRes.value.results) {
       if (existingIds.has(r.imdbID)) continue
       movieIds.push(r.imdbID)
-      if (movieIds.length >= 3) break
+      if (movieIds.length >= 4) break
     }
   }
 
@@ -79,7 +79,7 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
     for (const r of seriesSearchRes.value.results) {
       if (existingIds.has(r.imdbID)) continue
       seriesIds.push(r.imdbID)
-      if (seriesIds.length >= 3) break
+      if (seriesIds.length >= 4) break
     }
   }
 
@@ -129,7 +129,7 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
         plot: null,
         externalRating: null,
       })
-      if (books.length >= 3) break
+      if (books.length >= 4) break
     }
   }
 

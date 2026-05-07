@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Film, BookOpen, Tv, Search, Sparkles, LogOut } from 'lucide-react'
-import { signOut } from '@/app/(auth)/auth/actions'
+import { Film, BookOpen, Tv, Search, BarChart3, Sparkles } from 'lucide-react'
 
 const navItems = [
   { href: '/movies', icon: Film, label: 'Movies' },
   { href: '/books', icon: BookOpen, label: 'Books' },
   { href: '/series', icon: Tv, label: 'Series' },
   { href: '/search', icon: Search, label: 'Search' },
+  { href: '/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/recommendations', icon: Sparkles, label: 'For You' },
 ]
 
@@ -28,21 +28,12 @@ export function BottomNav() {
             className="flex items-center justify-center h-16 flex-1"
           >
             <Icon
-              size={24}
+              size={22}
               className={isActive ? 'text-accent' : 'text-accent-silver'}
             />
           </Link>
         )
       })}
-      <form action={signOut} className="flex items-center justify-center h-16 flex-1">
-        <button
-          type="submit"
-          className="flex items-center justify-center w-full h-full text-accent-silver hover:text-red-400 transition-colors"
-          aria-label="Log out"
-        >
-          <LogOut size={22} />
-        </button>
-      </form>
     </nav>
   )
 }
