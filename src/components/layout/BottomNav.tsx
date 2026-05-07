@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Film, BookOpen, Tv, Search, User, LogOut } from 'lucide-react'
 import { signOut } from '@/app/(auth)/auth/actions'
+import { SyncStatusBadge } from './SyncStatusBadge'
 
 const navItems = [
   { href: '/movies', icon: Film, label: 'Movies' },
@@ -17,7 +18,8 @@ export function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:hidden flex items-center justify-around h-16 bg-base-surface/90 backdrop-blur-md border-t border-accent-silver/10 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 md:hidden flex items-center justify-around h-16 bg-base-surface/90 backdrop-blur-md border-t border-accent-silver/10 z-50 relative">
+      <div className="absolute inset-x-0 top-0 pointer-events-none"><SyncStatusBadge variant="bottomnav" /></div>
       {navItems.map((item) => {
         const isActive = pathname.startsWith(item.href)
         const Icon = item.icon
