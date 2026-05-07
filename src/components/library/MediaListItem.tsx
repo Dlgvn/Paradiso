@@ -42,7 +42,7 @@ export function MediaListItem({ item, onItemClick }: MediaListItemProps) {
   function handleStatusChange(newStatus: MediaStatus) {
     startTransition(async () => {
       setOptimisticStatus(newStatus)
-      const result = await updateItemStatus(item.id, newStatus, item.media_type)
+      const result = await updateItemStatus(item.id, newStatus)
       if (result?.error) {
         toast("Couldn't save change. Try again.", { duration: 4000 })
       }
@@ -53,7 +53,7 @@ export function MediaListItem({ item, onItemClick }: MediaListItemProps) {
     startTransition(async () => {
       const newFavorite = !optimisticFavorite
       setOptimisticFavorite(newFavorite)
-      const result = await toggleFavorite(item.id, newFavorite, item.media_type)
+      const result = await toggleFavorite(item.id, newFavorite)
       if (result?.error) {
         toast("Couldn't save change. Try again.", { duration: 4000 })
       }

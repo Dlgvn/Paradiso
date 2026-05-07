@@ -8,6 +8,7 @@ import { ChartCard } from '@/components/analytics/ChartCard'
 import { CompletionChart } from '@/components/analytics/CompletionChart'
 import { GenreBreakdownChart } from '@/components/analytics/GenreBreakdownChart'
 import { RatingDistributionChart } from '@/components/analytics/RatingDistributionChart'
+import { RecommendationsSection } from '@/components/analytics/RecommendationsSection'
 
 type AnalyticsItem = Pick<MediaItem, 'id' | 'media_type' | 'status' | 'genre' | 'user_rating' | 'date_completed' | 'title' | 'external_id'>
 
@@ -49,6 +50,8 @@ export function AnalyticsClient({ items }: Props) {
           <RatingDistributionChart data={ratingData} />
         </ChartCard>
       </div>
+
+      <RecommendationsSection />
     </div>
   )
 }

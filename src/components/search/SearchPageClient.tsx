@@ -276,7 +276,6 @@ export function SearchPageClient({ initialLibraryItems }: SearchPageClientProps)
           onAddAnyway={handleDuplicateAddAnyway}
           existingStatus={duplicateStatus}
           itemTitle={selectedItem.title}
-          mediaType={selectedItem.mediaType}
         />
       )}
 
