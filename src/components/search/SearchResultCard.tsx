@@ -22,7 +22,7 @@ function isOmdbResult(
 
 export function SearchResultCard({
   result,
-  mediaType: _mediaType,
+  mediaType: _mediaType, // eslint-disable-line @typescript-eslint/no-unused-vars
   existingStatus,
   onTap,
   isAdded,
