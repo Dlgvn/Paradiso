@@ -49,6 +49,7 @@ export function AnalyticsClient({ items }: Props) {
           <RatingDistributionChart data={ratingData} />
         </ChartCard>
       </div>
+
     </div>
   )
 }

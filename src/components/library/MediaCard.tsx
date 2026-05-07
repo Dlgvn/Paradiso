@@ -2,7 +2,7 @@
 
 import { useOptimistic, useTransition, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Heart, Star } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -51,8 +51,6 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
     }, 80)
   }
 
-  const [ratingHovered, setRatingHovered] = useState(false)
-
   const [optimisticStatus, setOptimisticStatus] = useOptimistic(
     item.status,
     (_: MediaStatus, newStatus: MediaStatus) => newStatus
@@ -85,7 +83,7 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
     })
   }
 
-  const ratingStars = item.user_rating ? Math.round(item.user_rating / 2) : 0
+
 
   return (
     <div
@@ -129,24 +127,10 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
           <p className="text-[12px] font-[400] text-[#94a3b8] mb-1">{item.year}</p>
         )}
 
-        {/* Star rating */}
-        <div
-          className="flex items-center gap-0.5 mb-2"
-          onMouseEnter={() => item.user_rating && setRatingHovered(true)}
-          onMouseLeave={() => setRatingHovered(false)}
-        >
+        {/* Rating */}
+        <div className="flex items-center gap-0.5 mb-2">
           {item.user_rating ? (
-            ratingHovered ? (
-              <span className="text-[13px] font-[600] text-[#eab308]">{item.user_rating}/10</span>
-            ) : (
-              Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  size={14}
-                  className={i < ratingStars ? 'text-[#eab308] fill-[#eab308]' : 'text-[#94a3b8]'}
-                />
-              ))
-            )
+            <span className="text-[13px] font-[600] text-[#eab308]">{item.user_rating}/10</span>
           ) : (
             <span className="text-[11px] text-[#94a3b8]">Not rated</span>
           )}
