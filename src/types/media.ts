@@ -20,6 +20,7 @@ export interface MediaItem {
   date_added: string
   date_completed: string | null
   notes: string | null
+  updated_at: string
 }
 
 export interface AddMediaItemInput {
