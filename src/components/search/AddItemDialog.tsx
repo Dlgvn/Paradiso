@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/sheet'
 import { addMediaItem } from '@/app/actions/library'
 import type { MediaType, MediaStatus } from '@/types/media'
-import { MEDIA_STATUSES, STATUS_LABELS } from '@/types/media'
+import { STATUSES_BY_TYPE, STATUS_LABELS_BY_TYPE } from '@/types/media'
 
 interface AddItemDialogProps {
   open: boolean
@@ -118,7 +118,7 @@ function AddItemContent({
       <div>
         <p className="text-[14px] font-[400] text-[#94a3b8] mb-2">Status</p>
         <div className="flex flex-wrap gap-2">
-          {MEDIA_STATUSES.map((status) => (
+          {STATUSES_BY_TYPE[item.mediaType].map((status) => (
             <button
               key={status}
               disabled={isLoading}
@@ -129,7 +129,7 @@ function AddItemContent({
                   : 'bg-[#12121a] text-[#94a3b8] hover:text-[#f1f5f9]'
               }`}
             >
-              {STATUS_LABELS[status]}
+              {STATUS_LABELS_BY_TYPE[item.mediaType][status]}
             </button>
           ))}
         </div>
