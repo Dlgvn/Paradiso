@@ -23,12 +23,12 @@ decisions:
   - Parallel OMDB + Open Library fetch via Promise.allSettled for resilience
   - Fetch-once-on-mount pattern (reloadKey increment only on explicit "Try again")
 metrics:
-  duration: ~25 minutes
-  completed: 2026-05-07T02:34:00Z
-  tasks_completed: 2
+  duration: ~60 minutes
+  completed: 2026-05-07T05:00:00Z
+  tasks_completed: 3
   tasks_total: 3
   files_created: 3
-  files_modified: 5
+  files_modified: 8
 ---
 
 # Phase 5 Plan 03: Recommendations Layer Summary
@@ -41,7 +41,7 @@ metrics:
 |------|--------|--------|-------------|
 | 1 | Done | 292cd42 | getRecommendations Server Action |
 | 2 | Done | 784dbf8 | RecommendationCard + RecommendationsSection + AnalyticsClient integration |
-| 3 | Checkpoint | — | Human-verify /analytics page (pending) |
+| 3 | Done | approved | Human-verify /analytics page — PASSED |
 
 ## What Was Built
 
@@ -84,9 +84,19 @@ metrics:
 - **Fix:** `npm install recharts` in the worktree (the original media-tracker-v3 has it; worktree had its own node_modules)
 - **Commit:** 784dbf8
 
-## Checkpoint Status
+## Checkpoint Outcome
 
-Task 3 is a `checkpoint:human-verify` gate. The dev server can be started with `npm run dev` and the `/analytics` page verified visually per the 9-step checklist in the plan.
+Task 3 human-verify checkpoint PASSED. After approval, several post-checkpoint fixes were applied:
+
+**Post-checkpoint commits:**
+- `0d253d6` fix(05-03): enrich recommendation candidates with full details (genre, director, plot)
+- `f04b3e8` feat(05-03): move recommendations to /recommendations page, split by Movies/Series/Books
+- `5f030a1` fix(05-03): add Analytics to mobile nav, increase recommendations to 10 (4+4+4)
+- `d4fad75` fix(05-03): use media-type-specific status labels in AddItemDialog (Want to Read, Reading, etc.)
+- `160f391` feat: show numeric rating (X/10) on star hover in media card
+- `6a29c70` fix: show only numeric rating in card hover overlay, remove stars
+
+These fixes enriched the recommendation cards with full OMDB/Open Library details, split recommendations into a dedicated `/recommendations` page (Movies/Series/Books tabs), added Analytics to mobile navigation, and improved status label UX in AddItemDialog.
 
 ## Known Stubs
 
@@ -97,4 +107,10 @@ None — recommendations are fetched from live OMDB and Open Library APIs.
 No new network endpoints beyond those covered in the plan's threat model. The `'use server'` directive on `recommendations.ts` ensures OMDB key isolation is enforced by Next.js bundler.
 
 ## Self-Check
+
+- `src/app/actions/recommendations.ts` — FOUND
+- `src/components/analytics/RecommendationCard.tsx` — FOUND
+- `src/components/analytics/RecommendationsSection.tsx` — FOUND
+- Commits 292cd42, 784dbf8 — FOUND in git log
+
 ## Self-Check: PASSED
