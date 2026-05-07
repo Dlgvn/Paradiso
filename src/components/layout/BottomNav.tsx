@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Film, BookOpen, Tv, Search, User, LogOut } from 'lucide-react'
+import { Film, BookOpen, Tv, Search, Sparkles, LogOut } from 'lucide-react'
 import { signOut } from '@/app/(auth)/auth/actions'
 
 const navItems = [
@@ -10,7 +10,7 @@ const navItems = [
   { href: '/books', icon: BookOpen, label: 'Books' },
   { href: '/series', icon: Tv, label: 'Series' },
   { href: '/search', icon: Search, label: 'Search' },
-  { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/recommendations', icon: Sparkles, label: 'For You' },
 ]
 
 export function BottomNav() {

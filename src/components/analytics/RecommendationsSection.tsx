@@ -8,9 +8,9 @@ import { RecommendationCard } from './RecommendationCard'
 import {
   getRecommendations,
   type RecommendationCandidate,
+  type RecommendationsByType,
 } from '@/app/actions/recommendations'
 
-// Lazy import — AddItemDialog uses browser APIs and Sheet/Dialog (heavy)
 const AddItemDialog = dynamic(
   () => import('@/components/search/AddItemDialog').then(m => m.AddItemDialog),
   { ssr: false }
@@ -20,7 +20,33 @@ type LoadState =
   | { status: 'loading' }
   | { status: 'empty' }
   | { status: 'error' }
-  | { status: 'ready'; candidates: RecommendationCandidate[] }
+  | { status: 'ready'; data: RecommendationsByType }
+
+function SectionRow({
+  title,
+  items,
+  onAdd,
+}: {
+  title: string
+  items: RecommendationCandidate[]
+  onAdd: (c: RecommendationCandidate) => void
+}) {
+  if (items.length === 0) return null
+  return (
+    <div>
+      <h3 className="text-[16px] font-[600] text-white mb-3">{title}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map(c => (
+          <RecommendationCard
+            key={`${c.mediaType}:${c.externalId}`}
+            candidate={c}
+            onAdd={onAdd}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function RecommendationsSection() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
@@ -34,10 +60,17 @@ export function RecommendationsSection() {
       if (cancelled) return
       if (result.error === 'UNAUTHORIZED' || result.error === 'API_ERROR') {
         setState({ status: 'error' })
-      } else if (result.error === 'NO_DATA' || result.recommendations.length === 0) {
+      } else if (result.error === 'NO_DATA') {
         setState({ status: 'empty' })
+      } else if (result.data) {
+        const { movies, series, books } = result.data
+        if (movies.length === 0 && series.length === 0 && books.length === 0) {
+          setState({ status: 'empty' })
+        } else {
+          setState({ status: 'ready', data: result.data })
+        }
       } else {
-        setState({ status: 'ready', candidates: result.recommendations })
+        setState({ status: 'empty' })
       }
     }).catch(() => {
       if (!cancelled) setState({ status: 'error' })
@@ -45,29 +78,48 @@ export function RecommendationsSection() {
     return () => { cancelled = true }
   }, [reloadKey])
 
-  return (
-    <section className="rounded-2xl bg-base-elevated border border-accent-silver/10 p-6">
-      <header className="mb-4">
-        <h2 className="text-[20px] font-[600] text-white">Recommended for You</h2>
-        <p className="text-[14px] font-[400] text-accent-silver mt-1">Based on your top genres and highest-rated titles</p>
-      </header>
+  function handleAdded(candidate: RecommendationCandidate) {
+    toast.success(`Added "${candidate.title}" to your library`)
+    setState(prev => {
+      if (prev.status !== 'ready') return prev
+      const filter = (list: RecommendationCandidate[]) =>
+        list.filter(c => c.externalId !== candidate.externalId)
+      return {
+        status: 'ready',
+        data: {
+          movies: filter(prev.data.movies),
+          series: filter(prev.data.series),
+          books: filter(prev.data.books),
+        },
+      }
+    })
+    setSelected(null)
+  }
 
+  return (
+    <div className="flex flex-col gap-8">
       {state.status === 'loading' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[0, 1, 2].map(i => <Skeleton key={i} className="h-[120px] w-full rounded-xl" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[0, 1, 2, 3, 4, 5].map(i => (
+            <Skeleton key={i} className="h-[140px] w-full rounded-xl" />
+          ))}
         </div>
       )}
 
       {state.status === 'empty' && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-[16px] font-[600] text-accent-silver mb-1">Not enough data yet</p>
-          <p className="text-[14px] font-[400] text-accent-silver/70 max-w-xs">Complete or rate a few items to unlock recommendations.</p>
+          <p className="text-[14px] font-[400] text-accent-silver/70 max-w-xs">
+            Complete or rate a few items to unlock recommendations.
+          </p>
         </div>
       )}
 
       {state.status === 'error' && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-[14px] font-[400] text-accent-silver mb-3">Could not load recommendations. Check your connection and try again.</p>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <p className="text-[14px] font-[400] text-accent-silver mb-3">
+            Could not load recommendations. Check your connection and try again.
+          </p>
           <button
             onClick={() => setReloadKey(k => k + 1)}
             className="px-4 py-2 rounded-lg bg-accent text-white text-[13px] font-[500] hover:bg-accent/90 transition-colors"
@@ -78,31 +130,18 @@ export function RecommendationsSection() {
       )}
 
       {state.status === 'ready' && (
-        <div className="md:grid md:grid-cols-3 md:gap-4 flex gap-4 overflow-x-auto md:overflow-visible -mx-2 px-2 md:mx-0 md:px-0">
-          {state.candidates.map(c => (
-            <RecommendationCard
-              key={`${c.mediaType}:${c.externalId}`}
-              candidate={c}
-              onAdd={setSelected}
-            />
-          ))}
-        </div>
+        <>
+          <SectionRow title="Movies" items={state.data.movies} onAdd={setSelected} />
+          <SectionRow title="Series" items={state.data.series} onAdd={setSelected} />
+          <SectionRow title="Books" items={state.data.books} onAdd={setSelected} />
+        </>
       )}
 
       {selected && (
         <AddItemDialog
-          open={selected !== null}
+          open
           onClose={() => setSelected(null)}
-          onAdded={() => {
-            toast.success(`Added "${selected.title}" to your library`)
-            // Remove the added item from the list so the user sees progress
-            setState(prev =>
-              prev.status === 'ready'
-                ? { status: 'ready', candidates: prev.candidates.filter(c => c.externalId !== selected.externalId) }
-                : prev
-            )
-            setSelected(null)
-          }}
+          onAdded={() => handleAdded(selected)}
           item={{
             externalId: selected.externalId,
             mediaType: selected.mediaType,
@@ -117,6 +156,6 @@ export function RecommendationsSection() {
           }}
         />
       )}
-    </section>
+    </div>
   )
 }

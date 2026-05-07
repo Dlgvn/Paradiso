@@ -34,7 +34,20 @@ export function RecommendationCard({ candidate, onAdd }: Props) {
         {candidate.year && (
           <p className="text-[12px] font-[400] text-accent-silver mt-0.5">{candidate.year}</p>
         )}
-        <p className="text-[12px] font-[400] text-accent-silver/80 mt-2 line-clamp-2">{candidate.reason}</p>
+        {candidate.director && (
+          <p className="text-[11px] font-[400] text-accent-silver/70 mt-0.5 truncate">
+            Dir. {candidate.director}
+          </p>
+        )}
+        {candidate.author && (
+          <p className="text-[11px] font-[400] text-accent-silver/70 mt-0.5 truncate">
+            {candidate.author}
+          </p>
+        )}
+        {candidate.genre && (
+          <p className="text-[11px] font-[400] text-accent-silver/50 mt-0.5 truncate">{candidate.genre}</p>
+        )}
+        <p className="text-[11px] font-[400] text-accent/80 mt-1.5 line-clamp-1 italic">{candidate.reason}</p>
         <Button
           variant="default"
           size="sm"

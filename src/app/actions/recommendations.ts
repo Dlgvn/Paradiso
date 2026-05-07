@@ -20,15 +20,21 @@ export interface RecommendationCandidate {
   externalRating: string | null
 }
 
+export interface RecommendationsByType {
+  movies: RecommendationCandidate[]
+  series: RecommendationCandidate[]
+  books: RecommendationCandidate[]
+}
+
 export type GetRecommendationsResult =
-  | { recommendations: RecommendationCandidate[]; error: null }
-  | { recommendations: []; error: 'UNAUTHORIZED' | 'NO_DATA' | 'API_ERROR' }
+  | { data: RecommendationsByType; error: null }
+  | { data: null; error: 'UNAUTHORIZED' | 'NO_DATA' | 'API_ERROR' }
 
 export async function getRecommendations(): Promise<GetRecommendationsResult> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
-    return { recommendations: [], error: 'UNAUTHORIZED' }
+    return { data: null, error: 'UNAUTHORIZED' }
   }
 
   const { data: items, error: dbError } = await supabase
@@ -38,62 +44,79 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
     .limit(1000)
 
   if (dbError) {
-    return { recommendations: [], error: 'API_ERROR' }
+    return { data: null, error: 'API_ERROR' }
   }
   if (!items || items.length === 0) {
-    return { recommendations: [], error: 'NO_DATA' }
+    return { data: null, error: 'NO_DATA' }
   }
 
   const info = topGenreWithReason(items)
   if (!info) {
-    return { recommendations: [], error: 'NO_DATA' }
+    return { data: null, error: 'NO_DATA' }
   }
 
   const existingIds = new Set(items.map(i => i.external_id))
 
-  // Parallel fetch: OMDB movies + Open Library books, both keyed by top genre
-  const [movieResults, bookResults] = await Promise.allSettled([
+  // Parallel fetch: movies, series, books — all keyed by top genre
+  const [movieSearchRes, seriesSearchRes, bookSearchRes] = await Promise.allSettled([
     searchOmdb(info.genre, 'movie'),
+    searchOmdb(info.genre, 'series'),
     searchOpenLibrary(info.genre),
   ])
 
-  const candidates: RecommendationCandidate[] = []
-
-  // Up to 3 movie candidates — collect imdbIDs first, then fetch details in parallel
-  const movieImdbIds: string[] = []
-  if (movieResults.status === 'fulfilled' && !movieResults.value.error) {
-    for (const r of movieResults.value.results) {
+  // Collect up to 3 imdbIDs each for movies and series, then fetch full details
+  const movieIds: string[] = []
+  if (movieSearchRes.status === 'fulfilled' && !movieSearchRes.value.error) {
+    for (const r of movieSearchRes.value.results) {
       if (existingIds.has(r.imdbID)) continue
-      movieImdbIds.push(r.imdbID)
-      if (movieImdbIds.length >= 3) break
+      movieIds.push(r.imdbID)
+      if (movieIds.length >= 3) break
     }
   }
 
-  const movieDetails = await Promise.allSettled(movieImdbIds.map(id => getOmdbDetails(id)))
+  const seriesIds: string[] = []
+  if (seriesSearchRes.status === 'fulfilled' && !seriesSearchRes.value.error) {
+    for (const r of seriesSearchRes.value.results) {
+      if (existingIds.has(r.imdbID)) continue
+      seriesIds.push(r.imdbID)
+      if (seriesIds.length >= 3) break
+    }
+  }
 
-  for (const result of movieDetails) {
-    if (result.status !== 'fulfilled') continue
-    const d = result.value
-    candidates.push({
+  const [movieDetailsRes, seriesDetailsRes] = await Promise.all([
+    Promise.allSettled(movieIds.map(id => getOmdbDetails(id))),
+    Promise.allSettled(seriesIds.map(id => getOmdbDetails(id))),
+  ])
+
+  function detailToCandidate(d: Awaited<ReturnType<typeof getOmdbDetails>>, reason: string): RecommendationCandidate {
+    return {
       externalId: d.imdbId,
       mediaType: d.type,
       title: d.title ?? '',
       year: d.year,
       posterUrl: d.posterUrl,
-      reason: info.reason,
+      reason,
       genre: d.genre,
       director: d.director,
       author: null,
       plot: d.plot,
       externalRating: d.imdbRating,
-    })
+    }
   }
 
-  // Up to 2 book candidates
-  if (bookResults.status === 'fulfilled' && !bookResults.value.error) {
-    for (const r of bookResults.value.results) {
+  const movies: RecommendationCandidate[] = movieDetailsRes
+    .filter(r => r.status === 'fulfilled')
+    .map(r => detailToCandidate((r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value, info.reason))
+
+  const series: RecommendationCandidate[] = seriesDetailsRes
+    .filter(r => r.status === 'fulfilled')
+    .map(r => detailToCandidate((r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value, info.reason))
+
+  const books: RecommendationCandidate[] = []
+  if (bookSearchRes.status === 'fulfilled' && !bookSearchRes.value.error) {
+    for (const r of bookSearchRes.value.results) {
       if (existingIds.has(r.key)) continue
-      candidates.push({
+      books.push({
         externalId: r.key,
         mediaType: 'book',
         title: r.title,
@@ -106,21 +129,13 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
         plot: null,
         externalRating: null,
       })
-      if (candidates.filter(c => c.mediaType === 'book').length >= 2) break
+      if (books.length >= 3) break
     }
   }
 
-  // Hard cap: 5 total per D-06 ("3-5 recommendation cards")
-  const finalCandidates = candidates.slice(0, 5)
-
-  // If both API calls failed entirely → API_ERROR
-  if (
-    finalCandidates.length === 0 &&
-    movieResults.status === 'rejected' &&
-    bookResults.status === 'rejected'
-  ) {
-    return { recommendations: [], error: 'API_ERROR' }
+  if (movies.length === 0 && series.length === 0 && books.length === 0) {
+    return { data: null, error: 'API_ERROR' }
   }
 
-  return { recommendations: finalCandidates, error: null }
+  return { data: { movies, series, books }, error: null }
 }
