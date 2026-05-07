@@ -121,7 +121,7 @@ export async function addMediaItem(input: AddMediaItemInput) {
   return { success: true }
 }
 
-export async function updateItemStatus(id: string, status: MediaStatus, _mediaType?: string) {
+export async function updateItemStatus(id: string, status: MediaStatus) {
   const parsed = updateItemStatusSchema.safeParse({ id, status })
   if (!parsed.success) {
     return { error: 'INVALID_INPUT', details: parsed.error.flatten() }
@@ -181,7 +181,7 @@ export async function updateItemRating(id: string, rating: number | null) {
   return { success: true }
 }
 
-export async function toggleFavorite(id: string, isFavorite: boolean, _mediaType?: string) {
+export async function toggleFavorite(id: string, isFavorite: boolean) {
   const parsed = toggleFavoriteSchema.safeParse({ id, isFavorite })
   if (!parsed.success) {
     return { error: 'INVALID_INPUT', details: parsed.error.flatten() }
