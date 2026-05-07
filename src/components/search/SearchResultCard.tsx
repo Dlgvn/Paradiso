@@ -22,7 +22,7 @@ function isOmdbResult(
 
 export function SearchResultCard({
   result,
-  mediaType,
+  mediaType: _mediaType,
   existingStatus,
   onTap,
   isAdded,
