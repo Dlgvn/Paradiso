@@ -36,7 +36,7 @@ function DetailContent({ item, onOpenChange }: { item: MediaItem; onOpenChange: 
     if (newStatus === optimisticStatus) return
     startTransition(async () => {
       setOptimisticStatus(newStatus)
-      const result = await updateItemStatus(item.id, newStatus, item.media_type)
+      const result = await updateItemStatus(item.id, newStatus)
       if (result?.error) {
         toast("Couldn't save change. Try again.", { duration: 4000 })
       }

@@ -64,7 +64,7 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
   function handleStatusChange(newStatus: MediaStatus) {
     startTransition(async () => {
       setOptimisticStatus(newStatus)
-      const result = await updateItemStatus(item.id, newStatus, item.media_type)
+      const result = await updateItemStatus(item.id, newStatus)
       if (result?.error) {
         // Optimistic state will revert automatically when transition ends without revalidation
         toast("Couldn't save change. Try again.", { duration: 4000 })
@@ -76,7 +76,7 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
     startTransition(async () => {
       const newFavorite = !optimisticFavorite
       setOptimisticFavorite(newFavorite)
-      const result = await toggleFavorite(item.id, newFavorite, item.media_type)
+      const result = await toggleFavorite(item.id, newFavorite)
       if (result?.error) {
         toast("Couldn't save change. Try again.", { duration: 4000 })
       }
