@@ -110,15 +110,6 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
         </div>
       )}
 
-      {/* Episode badge for watching series */}
-      {item.media_type === 'series' && item.status === 'watching' && (item.current_season || item.current_episode) && (
-        <div className="absolute top-1.5 left-1.5 z-10 bg-[#3b82f6]/90 text-white text-[10px] font-[500] px-1.5 py-0.5 rounded-md leading-none">
-          {item.current_season ? `S${item.current_season}` : ''}
-          {item.current_season && item.current_episode ? '·' : ''}
-          {item.current_episode ? `E${item.current_episode}` : ''}
-        </div>
-      )}
-
       {/* Hover overlay — JS-controlled with debounce, CSS group-hover as fallback */}
       <div
         className={`absolute inset-0 transition-opacity duration-[180ms] ease-out flex flex-col justify-end p-2 ${
@@ -144,6 +135,18 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
             <span className="text-[11px] text-[#94a3b8]">Not rated</span>
           )}
         </div>
+
+        {/* Episode progress bar — watching series only */}
+        {item.media_type === 'series' && item.status === 'watching' && item.total_seasons && (
+          <div className="w-full h-1 bg-white/10 rounded-full mb-2 overflow-hidden">
+            <div
+              className="h-full bg-[#3b82f6] rounded-full"
+              style={{
+                width: `${Math.min(100, (item.episodes_watched.length / (item.total_seasons * 10)) * 100)}%`,
+              }}
+            />
+          </div>
+        )}
 
         {/* Bottom row: status dropdown + favorite */}
         <div className="flex items-center justify-between">

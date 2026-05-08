@@ -90,11 +90,9 @@ export function MediaListItem({ item, onItemClick }: MediaListItemProps) {
           {item.year && (
             <p className="text-[12px] font-[400] text-[#94a3b8]">{item.year}</p>
           )}
-          {item.media_type === 'series' && item.status === 'watching' && (item.current_season || item.current_episode) && (
+          {item.media_type === 'series' && item.status === 'watching' && item.episodes_watched.length > 0 && (
             <span className="text-[11px] text-[#3b82f6] font-[500]">
-              {item.current_season ? `S${item.current_season}` : ''}
-              {item.current_season && item.current_episode ? '·' : ''}
-              {item.current_episode ? `E${item.current_episode}` : ''}
+              {item.episodes_watched.length} ep
             </span>
           )}
         </div>

@@ -21,8 +21,8 @@ export interface MediaItem {
   date_completed: string | null
   notes: string | null
   updated_at: string
-  current_season: number | null
-  current_episode: number | null
+  total_seasons: number | null
+  episodes_watched: { season: number; episode: number }[]
 }
 
 export interface AddMediaItemInput {
@@ -38,6 +38,7 @@ export interface AddMediaItemInput {
   externalRating?: string | null
   status: MediaStatus
   userRating?: number | null
+  totalSeasons?: number | null
 }
 
 export const MEDIA_TYPES: MediaType[] = ['movie', 'book', 'series']

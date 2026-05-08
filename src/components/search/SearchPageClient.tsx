@@ -31,6 +31,7 @@ interface AddItemData {
   author?: string | null
   plot?: string | null
   externalRating?: string | null
+  totalSeasons?: number | null
 }
 
 interface SearchPageClientProps {
@@ -157,6 +158,7 @@ export function SearchPageClient({ initialLibraryItems }: SearchPageClientProps)
           director: details.director,
           plot: details.plot,
           externalRating: details.imdbRating,
+          totalSeasons: details.totalSeasons ?? null,
         }
       } catch {
         return {

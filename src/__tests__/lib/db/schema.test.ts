@@ -21,8 +21,8 @@ function makeItem(overrides: Partial<LibraryItem> = {}): LibraryItem {
     date_completed: overrides.date_completed ?? null,
     notes: overrides.notes ?? null,
     updated_at: overrides.updated_at ?? '2024-01-01T00:00:00.000Z',
-    current_season: overrides.current_season ?? null,
-    current_episode: overrides.current_episode ?? null,
+    total_seasons: overrides.total_seasons ?? null,
+    episodes_watched: overrides.episodes_watched ?? [],
   }
 }
 

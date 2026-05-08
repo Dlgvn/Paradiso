@@ -25,6 +25,7 @@ const addMediaItemSchema = z.object({
   plot: z.string().nullable().optional(),
   posterUrl: z.string().nullable().optional(),
   externalRating: z.string().nullable().optional(),
+  totalSeasons: z.number().int().min(1).nullable().optional(),
 })
 
 const updateItemStatusSchema = z.object({
@@ -46,10 +47,11 @@ const deleteMediaItemSchema = z.object({
   id: z.string().uuid(),
 })
 
-const updateEpisodeProgressSchema = z.object({
+const toggleEpisodeWatchedSchema = z.object({
   id: z.string().uuid(),
-  current_season: z.number().int().min(1).nullable(),
-  current_episode: z.number().int().min(1).nullable(),
+  season: z.number().int().min(1),
+  episode: z.number().int().min(1),
+  watched: z.boolean(),
 })
 
 const checkDuplicateSchema = z.object({
@@ -95,6 +97,7 @@ export async function addMediaItem(input: AddMediaItemInput) {
     plot,
     posterUrl,
     externalRating,
+    totalSeasons,
   } = parsed.data
 
   const dateCompleted = status === 'completed' ? new Date().toISOString() : null
@@ -114,6 +117,8 @@ export async function addMediaItem(input: AddMediaItemInput) {
     poster_url: posterUrl ?? null,
     external_rating: externalRating ?? null,
     date_completed: dateCompleted,
+    total_seasons: totalSeasons ?? null,
+    episodes_watched: [],
   })
 
   if (insertError) {
@@ -239,12 +244,13 @@ export async function deleteMediaItem(id: string) {
   return { success: true }
 }
 
-export async function updateEpisodeProgress(
+export async function toggleEpisodeWatched(
   id: string,
-  season: number | null,
-  episode: number | null,
+  season: number,
+  episode: number,
+  watched: boolean,
 ) {
-  const parsed = updateEpisodeProgressSchema.safeParse({ id, current_season: season, current_episode: episode })
+  const parsed = toggleEpisodeWatchedSchema.safeParse({ id, season, episode, watched })
   if (!parsed.success) {
     return { error: 'INVALID_INPUT', details: parsed.error.flatten() }
   }
@@ -255,9 +261,33 @@ export async function updateEpisodeProgress(
     return { error: 'UNAUTHORIZED' }
   }
 
+  // Fetch current episodes_watched array
+  const { data: row, error: fetchError } = await supabase
+    .from('media_items')
+    .select('episodes_watched')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (fetchError || !row) {
+    return { error: fetchError?.message ?? 'NOT_FOUND' }
+  }
+
+  const current: { season: number; episode: number }[] = Array.isArray(row.episodes_watched)
+    ? row.episodes_watched
+    : []
+
+  let updated: { season: number; episode: number }[]
+  if (watched) {
+    const alreadyIn = current.some((e) => e.season === season && e.episode === episode)
+    updated = alreadyIn ? current : [...current, { season, episode }]
+  } else {
+    updated = current.filter((e) => !(e.season === season && e.episode === episode))
+  }
+
   const { error: updateError } = await supabase
     .from('media_items')
-    .update({ current_season: parsed.data.current_season, current_episode: parsed.data.current_episode })
+    .update({ episodes_watched: updated })
     .eq('id', id)
     .eq('user_id', user.id)
 

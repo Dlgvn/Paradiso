@@ -34,6 +34,7 @@ interface AddItemDialogProps {
     author?: string | null
     plot?: string | null
     externalRating?: string | null
+    totalSeasons?: number | null
   }
 }
 
@@ -69,6 +70,7 @@ function AddItemContent({
       plot: item.plot,
       posterUrl: item.posterUrl,
       externalRating: item.externalRating,
+      totalSeasons: item.totalSeasons,
     })
 
     setIsLoading(false)

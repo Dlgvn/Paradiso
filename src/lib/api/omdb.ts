@@ -16,6 +16,12 @@ export interface OmdbDetailResult {
   posterUrl: string | null
   imdbRating: string | null
   type: 'movie' | 'series'
+  totalSeasons: number | null
+}
+
+export interface OmdbEpisode {
+  episode: number
+  title: string
 }
 
 export async function searchOmdb(
@@ -55,6 +61,10 @@ export async function getOmdbDetails(
   const res = await fetch(url, { next: { revalidate: 3600 } })
   const data = await res.json()
 
+  const rawSeasons = data.totalSeasons
+  const totalSeasons =
+    rawSeasons && rawSeasons !== 'N/A' ? parseInt(rawSeasons, 10) : null
+
   return {
     imdbId: data.imdbID,
     title: data.Title !== 'N/A' ? data.Title : null,
@@ -65,5 +75,25 @@ export async function getOmdbDetails(
     posterUrl: data.Poster !== 'N/A' ? data.Poster : null,
     imdbRating: data.imdbRating !== 'N/A' ? data.imdbRating : null,
     type: data.Type as 'movie' | 'series',
+    totalSeasons: isNaN(totalSeasons as number) ? null : totalSeasons,
   }
+}
+
+export async function getOmdbSeason(
+  imdbId: string,
+  season: number
+): Promise<OmdbEpisode[]> {
+  const apiKey = process.env.OMDB_API_KEY
+  if (!apiKey) return []
+
+  const url = `https://www.omdbapi.com/?apikey=${apiKey}&i=${imdbId}&Season=${season}`
+  const res = await fetch(url, { next: { revalidate: 300 } })
+  const data = await res.json()
+
+  if (data.Response === 'False' || !Array.isArray(data.Episodes)) return []
+
+  return data.Episodes.map((ep: { Episode: string; Title: string }) => ({
+    episode: parseInt(ep.Episode, 10),
+    title: ep.Title !== 'N/A' ? ep.Title : `Episode ${ep.Episode}`,
+  })).filter((ep: OmdbEpisode) => !isNaN(ep.episode))
 }

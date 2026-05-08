@@ -1,15 +1,16 @@
 'use client'
 
 import Image from 'next/image'
-import { useOptimistic, useTransition, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { useOptimistic, useTransition, useState, useEffect } from 'react'
+import { ArrowLeft, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { CinematicSheetBackdrop } from '@/components/detail/CinematicSheetBackdrop'
 import { GenrePills } from '@/components/detail/GenrePills'
 import { RatingEditor } from '@/components/detail/RatingEditor'
 import { DeleteConfirmRow } from '@/components/detail/DeleteConfirmRow'
-import { updateItemStatus, updateEpisodeProgress } from '@/app/actions/library'
+import { updateItemStatus, toggleEpisodeWatched } from '@/app/actions/library'
+import { getSeriesEpisodes } from '@/app/actions/search'
 import type { MediaItem, MediaStatus } from '@/types/media'
 import { STATUS_LABELS_BY_TYPE, STATUSES_BY_TYPE } from '@/types/media'
 
@@ -26,54 +27,138 @@ interface ItemDetailSheetProps {
   onOpenChange: (open: boolean) => void
 }
 
-function EpisodeProgressEditor({ item }: { item: MediaItem }) {
-  const [, startTransition] = useTransition()
-  const [season, setSeason] = useState<string>(item.current_season?.toString() ?? '')
-  const [episode, setEpisode] = useState<string>(item.current_episode?.toString() ?? '')
+interface Episode {
+  episode: number
+  title: string
+}
 
-  function handleBlur() {
-    const s = season === '' ? null : parseInt(season, 10)
-    const e = episode === '' ? null : parseInt(episode, 10)
-    const sValid = s === null || (!isNaN(s) && s >= 1)
-    const eValid = e === null || (!isNaN(e) && e >= 1)
-    if (!sValid || !eValid) return
+function EpisodeTracker({ item }: { item: MediaItem }) {
+  const totalSeasons = item.total_seasons ?? 1
+  const [selectedSeason, setSelectedSeason] = useState(1)
+  const [episodes, setEpisodes] = useState<Episode[]>([])
+  const [loadingEpisodes, setLoadingEpisodes] = useState(false)
+  const [, startTransition] = useTransition()
+
+  // Local optimistic state for watched episodes
+  const [watchedSet, setWatchedSet] = useState<Set<string>>(
+    () => new Set(item.episodes_watched.map((e) => `${e.season}-${e.episode}`))
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    setLoadingEpisodes(true)
+    setEpisodes([])
+    getSeriesEpisodes(item.external_id, selectedSeason).then((eps) => {
+      if (!cancelled) {
+        setEpisodes(eps)
+        setLoadingEpisodes(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [item.external_id, selectedSeason])
+
+  function toggleEpisode(episode: number) {
+    const key = `${selectedSeason}-${episode}`
+    const isWatched = watchedSet.has(key)
+    // Optimistic update
+    setWatchedSet((prev) => {
+      const next = new Set(prev)
+      if (isWatched) next.delete(key)
+      else next.add(key)
+      return next
+    })
     startTransition(async () => {
-      const result = await updateEpisodeProgress(item.id, s, e)
+      const result = await toggleEpisodeWatched(item.id, selectedSeason, episode, !isWatched)
       if (result?.error) {
+        // Revert optimistic on error
+        setWatchedSet((prev) => {
+          const next = new Set(prev)
+          if (isWatched) next.add(key)
+          else next.delete(key)
+          return next
+        })
         toast("Couldn't save progress. Try again.", { duration: 4000 })
       }
     })
   }
 
+  const totalWatched = watchedSet.size
+  const estimatedTotal = totalSeasons * 10
+  const progress = Math.min(1, estimatedTotal > 0 ? totalWatched / estimatedTotal : 0)
+
+  const seasonOptions = Array.from({ length: totalSeasons }, (_, i) => i + 1)
+
   return (
     <section className="px-4 pb-4">
-      <h3 className="text-[12px] uppercase tracking-widest text-[#94a3b8] mb-3">Progress</h3>
-      <div className="flex items-center gap-4">
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-[#94a3b8]">Season</span>
-          <input
-            type="number"
-            min={1}
-            value={season}
-            onChange={(e) => setSeason(e.target.value)}
-            onBlur={handleBlur}
-            placeholder="—"
-            className="w-16 bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-[14px] text-[#f1f5f9] text-center focus:outline-none focus:border-[#3b82f6]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-[#94a3b8]">Episode</span>
-          <input
-            type="number"
-            min={1}
-            value={episode}
-            onChange={(e) => setEpisode(e.target.value)}
-            onBlur={handleBlur}
-            placeholder="—"
-            className="w-16 bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-[14px] text-[#f1f5f9] text-center focus:outline-none focus:border-[#3b82f6]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </label>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[12px] uppercase tracking-widest text-[#94a3b8]">Progress</h3>
+        <span className="text-[11px] text-[#94a3b8]">{totalWatched} episodes watched</span>
       </div>
+
+      {/* Overall progress bar */}
+      <div className="w-full h-1 bg-white/10 rounded-full mb-4 overflow-hidden">
+        <div
+          className="h-full bg-[#3b82f6] rounded-full transition-all duration-300"
+          style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+
+      {/* Season selector */}
+      <div className="flex gap-1.5 flex-wrap mb-3">
+        {seasonOptions.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSelectedSeason(s)}
+            className={`text-[11px] px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
+              s === selectedSeason
+                ? 'bg-[#3b82f6]/20 text-[#3b82f6] border border-[#3b82f6]/30'
+                : 'bg-white/5 text-[#94a3b8] border border-white/10 hover:border-white/20'
+            }`}
+          >
+            S{s}
+          </button>
+        ))}
+      </div>
+
+      {/* Episode list */}
+      {loadingEpisodes ? (
+        <div className="flex flex-col gap-1.5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-8 bg-white/5 rounded-md animate-pulse" />
+          ))}
+        </div>
+      ) : episodes.length === 0 ? (
+        <p className="text-[12px] text-[#94a3b8]">No episode data available</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {episodes.map((ep) => {
+            const key = `${selectedSeason}-${ep.episode}`
+            const watched = watchedSet.has(key)
+            return (
+              <button
+                key={ep.episode}
+                onClick={() => toggleEpisode(ep.episode)}
+                className={`flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md transition-colors cursor-pointer ${
+                  watched
+                    ? 'bg-[#3b82f6]/10 hover:bg-[#3b82f6]/15'
+                    : 'hover:bg-white/5'
+                }`}
+              >
+                <div
+                  className={`flex-shrink-0 w-4 h-4 rounded-sm flex items-center justify-center transition-colors ${
+                    watched ? 'bg-[#3b82f6]' : 'bg-white/10 border border-white/20'
+                  }`}
+                >
+                  {watched && <Check size={10} strokeWidth={3} className="text-white" />}
+                </div>
+                <span className={`text-[13px] ${watched ? 'text-[#f1f5f9]' : 'text-[#94a3b8]'}`}>
+                  E{ep.episode}: {ep.title}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }
@@ -192,9 +277,9 @@ function DetailContent({ item, onOpenChange }: { item: MediaItem; onOpenChange: 
           </section>
         )}
 
-        {/* Episode progress — series in watching status only */}
+        {/* Episode tracker — series in watching status only */}
         {item.media_type === 'series' && optimisticStatus === 'watching' && (
-          <EpisodeProgressEditor item={item} />
+          <EpisodeTracker item={item} />
         )}
 
         {/* Rating editor */}
