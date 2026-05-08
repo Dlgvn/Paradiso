@@ -86,9 +86,18 @@ export function MediaListItem({ item, onItemClick }: MediaListItemProps) {
       {/* Content area */}
       <div className="flex-1 min-w-0">
         <p className="text-[14px] font-[400] text-[#f1f5f9] truncate">{item.title}</p>
-        {item.year && (
-          <p className="text-[12px] font-[400] text-[#94a3b8]">{item.year}</p>
-        )}
+        <div className="flex items-center gap-2">
+          {item.year && (
+            <p className="text-[12px] font-[400] text-[#94a3b8]">{item.year}</p>
+          )}
+          {item.media_type === 'series' && item.status === 'watching' && (item.current_season || item.current_episode) && (
+            <span className="text-[11px] text-[#3b82f6] font-[500]">
+              {item.current_season ? `S${item.current_season}` : ''}
+              {item.current_season && item.current_episode ? '·' : ''}
+              {item.current_episode ? `E${item.current_episode}` : ''}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Right-aligned controls — visible on hover */}

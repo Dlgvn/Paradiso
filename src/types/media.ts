@@ -21,6 +21,8 @@ export interface MediaItem {
   date_completed: string | null
   notes: string | null
   updated_at: string
+  current_season: number | null
+  current_episode: number | null
 }
 
 export interface AddMediaItemInput {

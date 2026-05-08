@@ -1,14 +1,15 @@
 'use client'
 
 import Image from 'next/image'
-import { useOptimistic, useTransition } from 'react'
+import { useOptimistic, useTransition, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { CinematicSheetBackdrop } from '@/components/detail/CinematicSheetBackdrop'
 import { GenrePills } from '@/components/detail/GenrePills'
 import { RatingEditor } from '@/components/detail/RatingEditor'
 import { DeleteConfirmRow } from '@/components/detail/DeleteConfirmRow'
-import { updateItemStatus } from '@/app/actions/library'
+import { updateItemStatus, updateEpisodeProgress } from '@/app/actions/library'
 import type { MediaItem, MediaStatus } from '@/types/media'
 import { STATUS_LABELS_BY_TYPE, STATUSES_BY_TYPE } from '@/types/media'
 
@@ -23,6 +24,58 @@ interface ItemDetailSheetProps {
   item: MediaItem | null
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+function EpisodeProgressEditor({ item }: { item: MediaItem }) {
+  const [, startTransition] = useTransition()
+  const [season, setSeason] = useState<string>(item.current_season?.toString() ?? '')
+  const [episode, setEpisode] = useState<string>(item.current_episode?.toString() ?? '')
+
+  function handleBlur() {
+    const s = season === '' ? null : parseInt(season, 10)
+    const e = episode === '' ? null : parseInt(episode, 10)
+    const sValid = s === null || (!isNaN(s) && s >= 1)
+    const eValid = e === null || (!isNaN(e) && e >= 1)
+    if (!sValid || !eValid) return
+    startTransition(async () => {
+      const result = await updateEpisodeProgress(item.id, s, e)
+      if (result?.error) {
+        toast("Couldn't save progress. Try again.", { duration: 4000 })
+      }
+    })
+  }
+
+  return (
+    <section className="px-4 pb-4">
+      <h3 className="text-[12px] uppercase tracking-widest text-[#94a3b8] mb-3">Progress</h3>
+      <div className="flex items-center gap-4">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-[#94a3b8]">Season</span>
+          <input
+            type="number"
+            min={1}
+            value={season}
+            onChange={(e) => setSeason(e.target.value)}
+            onBlur={handleBlur}
+            placeholder="—"
+            className="w-16 bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-[14px] text-[#f1f5f9] text-center focus:outline-none focus:border-[#3b82f6]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-[#94a3b8]">Episode</span>
+          <input
+            type="number"
+            min={1}
+            value={episode}
+            onChange={(e) => setEpisode(e.target.value)}
+            onBlur={handleBlur}
+            placeholder="—"
+            className="w-16 bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-[14px] text-[#f1f5f9] text-center focus:outline-none focus:border-[#3b82f6]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        </label>
+      </div>
+    </section>
+  )
 }
 
 function DetailContent({ item, onOpenChange }: { item: MediaItem; onOpenChange: (open: boolean) => void }) {
@@ -48,8 +101,17 @@ function DetailContent({ item, onOpenChange }: { item: MediaItem; onOpenChange: 
       <CinematicSheetBackdrop posterUrl={item.poster_url ?? null} alt={item.title} />
 
       <div className="relative z-10">
+        {/* Back button */}
+        <button
+          onClick={() => onOpenChange(false)}
+          className="flex items-center gap-1.5 text-[#94a3b8] hover:text-[#f1f5f9] transition-colors px-4 pt-2 pb-1"
+        >
+          <ArrowLeft size={16} />
+          <span className="text-[13px]">Back</span>
+        </button>
+
         {/* Header section */}
-        <section className="flex gap-6 pt-6 px-4 pb-4">
+        <section className="flex gap-6 pt-2 px-4 pb-4">
           {/* Poster thumbnail */}
           <div className="relative w-[120px] h-[180px] shrink-0 rounded-lg overflow-hidden shadow-2xl">
             {item.poster_url ? (
@@ -128,6 +190,11 @@ function DetailContent({ item, onOpenChange }: { item: MediaItem; onOpenChange: 
             <h3 className="text-[12px] uppercase tracking-widest text-[#94a3b8] mb-2">Synopsis</h3>
             <p className="text-[14px] font-[400] text-[#f1f5f9]/80 leading-relaxed">{item.plot}</p>
           </section>
+        )}
+
+        {/* Episode progress — series in watching status only */}
+        {item.media_type === 'series' && optimisticStatus === 'watching' && (
+          <EpisodeProgressEditor item={item} />
         )}
 
         {/* Rating editor */}

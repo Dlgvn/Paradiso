@@ -46,6 +46,12 @@ const deleteMediaItemSchema = z.object({
   id: z.string().uuid(),
 })
 
+const updateEpisodeProgressSchema = z.object({
+  id: z.string().uuid(),
+  current_season: z.number().int().min(1).nullable(),
+  current_episode: z.number().int().min(1).nullable(),
+})
+
 const checkDuplicateSchema = z.object({
   externalId: z.string().min(1),
 })
@@ -227,6 +233,36 @@ export async function deleteMediaItem(id: string) {
 
   if (deleteError) {
     return { error: deleteError.message }
+  }
+
+  revalidateLibraryPaths()
+  return { success: true }
+}
+
+export async function updateEpisodeProgress(
+  id: string,
+  season: number | null,
+  episode: number | null,
+) {
+  const parsed = updateEpisodeProgressSchema.safeParse({ id, current_season: season, current_episode: episode })
+  if (!parsed.success) {
+    return { error: 'INVALID_INPUT', details: parsed.error.flatten() }
+  }
+
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'UNAUTHORIZED' }
+  }
+
+  const { error: updateError } = await supabase
+    .from('media_items')
+    .update({ current_season: parsed.data.current_season, current_episode: parsed.data.current_episode })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (updateError) {
+    return { error: updateError.message }
   }
 
   revalidateLibraryPaths()

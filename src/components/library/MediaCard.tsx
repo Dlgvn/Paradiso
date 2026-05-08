@@ -110,6 +110,15 @@ export function MediaCard({ item, onItemClick }: MediaCardProps) {
         </div>
       )}
 
+      {/* Episode badge for watching series */}
+      {item.media_type === 'series' && item.status === 'watching' && (item.current_season || item.current_episode) && (
+        <div className="absolute top-1.5 left-1.5 z-10 bg-[#3b82f6]/90 text-white text-[10px] font-[500] px-1.5 py-0.5 rounded-md leading-none">
+          {item.current_season ? `S${item.current_season}` : ''}
+          {item.current_season && item.current_episode ? '·' : ''}
+          {item.current_episode ? `E${item.current_episode}` : ''}
+        </div>
+      )}
+
       {/* Hover overlay — JS-controlled with debounce, CSS group-hover as fallback */}
       <div
         className={`absolute inset-0 transition-opacity duration-[180ms] ease-out flex flex-col justify-end p-2 ${

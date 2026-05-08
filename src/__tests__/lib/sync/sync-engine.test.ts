@@ -42,6 +42,8 @@ function makeItem(overrides: Partial<LibraryItem> = {}): LibraryItem {
     date_completed: null,
     notes: null,
     updated_at: overrides.updated_at ?? '2024-01-01T00:00:00.000Z',
+    current_season: null,
+    current_episode: null,
   }
 }
 
