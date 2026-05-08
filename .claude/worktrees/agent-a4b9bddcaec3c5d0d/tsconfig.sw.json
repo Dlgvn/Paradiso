@@ -1,9 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "lib": ["esnext", "webworker"],
-    "types": ["@serwist/next/typings"]
-  },
-  "include": ["src/app/sw.ts"],
-  "exclude": ["node_modules"]
-}
