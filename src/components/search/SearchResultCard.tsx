@@ -20,9 +20,10 @@ function isOmdbResult(
   return 'imdbID' in result
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function SearchResultCard({
   result,
-  mediaType: _mediaType, // eslint-disable-line @typescript-eslint/no-unused-vars
+  mediaType: _mediaType,
   existingStatus,
   onTap,
   isAdded,
