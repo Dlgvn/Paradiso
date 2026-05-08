@@ -9,7 +9,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { signOut } from '@/app/(auth)/auth/actions'
-import { SyncStatusBadge } from './SyncStatusBadge'
 
 const navItems = [
   { href: '/movies', icon: Film, label: 'Movies' },
@@ -54,7 +53,6 @@ export function Sidebar() {
       })}
 
       <div className="mt-auto flex flex-col items-center gap-2">
-        <SyncStatusBadge variant="sidebar" />
         <Tooltip delayDuration={200}>
           <TooltipTrigger asChild>
             <form action={signOut}>
