@@ -10,7 +10,7 @@ import { GenrePills } from '@/components/detail/GenrePills'
 import { RatingEditor } from '@/components/detail/RatingEditor'
 import { DeleteConfirmRow } from '@/components/detail/DeleteConfirmRow'
 import { updateItemStatus, toggleEpisodeWatched } from '@/app/actions/library'
-import { getSeriesEpisodes } from '@/app/actions/search'
+import { getSeriesEpisodes, getMovieDetails } from '@/app/actions/search'
 import type { MediaItem, MediaStatus } from '@/types/media'
 import { STATUS_LABELS_BY_TYPE, STATUSES_BY_TYPE } from '@/types/media'
 
@@ -33,7 +33,7 @@ interface Episode {
 }
 
 function EpisodeTracker({ item }: { item: MediaItem }) {
-  const totalSeasons = item.total_seasons ?? 1
+  const [totalSeasons, setTotalSeasons] = useState<number>(item.total_seasons ?? 1)
   const [selectedSeason, setSelectedSeason] = useState(1)
   const [episodes, setEpisodes] = useState<Episode[]>([])
   const [loadingEpisodes, setLoadingEpisodes] = useState(false)
@@ -43,6 +43,16 @@ function EpisodeTracker({ item }: { item: MediaItem }) {
   const [watchedSet, setWatchedSet] = useState<Set<string>>(
     () => new Set(item.episodes_watched.map((e) => `${e.season}-${e.episode}`))
   )
+
+  // Fetch total_seasons from OMDB if not stored
+  useEffect(() => {
+    if (item.total_seasons) return
+    getMovieDetails(item.external_id).then((details) => {
+      if (details.totalSeasons && details.totalSeasons > 1) {
+        setTotalSeasons(details.totalSeasons)
+      }
+    })
+  }, [item.external_id, item.total_seasons])
 
   useEffect(() => {
     let cancelled = false
