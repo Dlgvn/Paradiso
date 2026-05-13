@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { searchOmdb, getOmdbDetails } from '@/lib/api/omdb'
 import { searchOpenLibrary, getOlCoverUrl } from '@/lib/api/open-library'
-import { topGenreWithReason } from '@/lib/analytics'
+import { topGenresWithScores } from '@/lib/analytics'
 import type { MediaType } from '@/types/media'
 
 export interface RecommendationCandidate {
@@ -50,38 +50,63 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
     return { data: null, error: 'NO_DATA' }
   }
 
-  const info = topGenreWithReason(items)
-  if (!info) {
+  const topGenres = topGenresWithScores(items)
+  if (topGenres.length === 0) {
     return { data: null, error: 'NO_DATA' }
   }
 
   const existingIds = new Set(items.map(i => i.external_id))
 
-  // Parallel fetch: movies, series, books — all keyed by top genre
-  const [movieSearchRes, seriesSearchRes, bookSearchRes] = await Promise.allSettled([
-    searchOmdb(info.genre, 'movie'),
-    searchOmdb(info.genre, 'series'),
-    searchOpenLibrary(info.genre),
+  // Assign genres to media types in a round-robin interleave so each type
+  // draws from different genres. With 3 genres [g0, g1, g2]:
+  //   movies  → g0, g1
+  //   series  → g1, g2
+  //   books   → g0, g2  (or g2 if only 1 genre)
+  const g = (idx: number) => topGenres[idx % topGenres.length]
+  const movieGenres  = [g(0), g(1)].filter((v, i, a) => a.indexOf(v) === i)
+  const seriesGenres = [g(1), g(2)].filter((v, i, a) => a.indexOf(v) === i)
+  const bookGenres   = [g(0), g(2)].filter((v, i, a) => a.indexOf(v) === i)
+
+  // Search all genre×type combos in parallel
+  const movieSearches  = movieGenres.map(g  => searchOmdb(g.genre, 'movie'))
+  const seriesSearches = seriesGenres.map(g => searchOmdb(g.genre, 'series'))
+  const bookSearches   = bookGenres.map(g   => searchOpenLibrary(g.genre))
+
+  const [movieResults, seriesResults, bookResults] = await Promise.all([
+    Promise.allSettled(movieSearches),
+    Promise.allSettled(seriesSearches),
+    Promise.allSettled(bookSearches),
   ])
 
-  // Collect up to 3 imdbIDs each for movies and series, then fetch full details
-  const movieIds: string[] = []
-  if (movieSearchRes.status === 'fulfilled' && !movieSearchRes.value.error) {
-    for (const r of movieSearchRes.value.results) {
-      if (existingIds.has(r.imdbID)) continue
-      movieIds.push(r.imdbID)
-      if (movieIds.length >= 4) break
+  // Collect IDs interleaved across genres, deduplicating seen IDs
+  function collectIds(
+    results: PromiseSettledResult<Awaited<ReturnType<typeof searchOmdb>>>[],
+    limit: number
+  ): string[] {
+    const seen = new Set<string>()
+    const ids: string[] = []
+    let round = 0
+    while (ids.length < limit) {
+      let added = false
+      for (const res of results) {
+        if (res.status !== 'fulfilled' || res.value.error) continue
+        const item = res.value.results[round]
+        if (!item) continue
+        if (!existingIds.has(item.imdbID) && !seen.has(item.imdbID)) {
+          seen.add(item.imdbID)
+          ids.push(item.imdbID)
+          added = true
+          if (ids.length >= limit) break
+        }
+      }
+      round++
+      if (!added) break
     }
+    return ids
   }
 
-  const seriesIds: string[] = []
-  if (seriesSearchRes.status === 'fulfilled' && !seriesSearchRes.value.error) {
-    for (const r of seriesSearchRes.value.results) {
-      if (existingIds.has(r.imdbID)) continue
-      seriesIds.push(r.imdbID)
-      if (seriesIds.length >= 4) break
-    }
-  }
+  const movieIds  = collectIds(movieResults, 4)
+  const seriesIds = collectIds(seriesResults, 4)
 
   const [movieDetailsRes, seriesDetailsRes] = await Promise.all([
     Promise.allSettled(movieIds.map(id => getOmdbDetails(id))),
@@ -104,33 +129,60 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
     }
   }
 
+  // Map each detail result back to its genre's reason
+  const movieIdToReason = new Map(
+    movieIds.map((id, i) => [id, movieGenres[i % movieGenres.length].reason])
+  )
+  const seriesIdToReason = new Map(
+    seriesIds.map((id, i) => [id, seriesGenres[i % seriesGenres.length].reason])
+  )
+
   const movies: RecommendationCandidate[] = movieDetailsRes
     .filter(r => r.status === 'fulfilled')
-    .map(r => detailToCandidate((r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value, info.reason))
+    .map(r => {
+      const detail = (r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value
+      return detailToCandidate(detail, movieIdToReason.get(detail.imdbId) ?? topGenres[0].reason)
+    })
 
   const series: RecommendationCandidate[] = seriesDetailsRes
     .filter(r => r.status === 'fulfilled')
-    .map(r => detailToCandidate((r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value, info.reason))
+    .map(r => {
+      const detail = (r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value
+      return detailToCandidate(detail, seriesIdToReason.get(detail.imdbId) ?? topGenres[0].reason)
+    })
 
+  // Collect books interleaved across book genres
   const books: RecommendationCandidate[] = []
-  if (bookSearchRes.status === 'fulfilled' && !bookSearchRes.value.error) {
-    for (const r of bookSearchRes.value.results) {
-      if (existingIds.has(r.key)) continue
-      books.push({
-        externalId: r.key,
-        mediaType: 'book',
-        title: r.title,
-        year: r.first_publish_year ? String(r.first_publish_year) : null,
-        posterUrl: r.cover_i ? getOlCoverUrl(r.cover_i, 'M') : null,
-        reason: info.reason,
-        genre: null,
-        director: null,
-        author: r.author_name?.[0] ?? null,
-        plot: null,
-        externalRating: null,
-      })
-      if (books.length >= 4) break
+  const seenBookKeys = new Set<string>()
+  let round = 0
+  while (books.length < 4) {
+    let added = false
+    for (let gi = 0; gi < bookResults.length; gi++) {
+      const res = bookResults[gi]
+      if (res.status !== 'fulfilled' || res.value.error) continue
+      const item = res.value.results[round]
+      if (!item) continue
+      if (!existingIds.has(item.key) && !seenBookKeys.has(item.key)) {
+        seenBookKeys.add(item.key)
+        books.push({
+          externalId: item.key,
+          mediaType: 'book',
+          title: item.title,
+          year: item.first_publish_year ? String(item.first_publish_year) : null,
+          posterUrl: item.cover_i ? getOlCoverUrl(item.cover_i, 'M') : null,
+          reason: bookGenres[gi % bookGenres.length].reason,
+          genre: null,
+          director: null,
+          author: item.author_name?.[0] ?? null,
+          plot: null,
+          externalRating: null,
+        })
+        added = true
+        if (books.length >= 4) break
+      }
     }
+    round++
+    if (!added) break
   }
 
   if (movies.length === 0 && series.length === 0 && books.length === 0) {

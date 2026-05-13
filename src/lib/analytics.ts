@@ -45,13 +45,22 @@ export function ratingDistribution(
   return dist
 }
 
-export function topGenreWithReason(
-  items: Pick<MediaItem, 'genre' | 'user_rating' | 'status'>[]
-): { genre: string; reason: string } | null {
+export interface GenreScore {
+  genre: string
+  score: number
+  reason: string
+}
+
+export function topGenresWithScores(
+  items: Pick<MediaItem, 'genre' | 'user_rating' | 'status'>[],
+  limit = 3
+): GenreScore[] {
   const scores: Record<string, number> = {}
   for (const item of items) {
     if (item.genre == null) continue
-    const weight = item.status === 'completed' ? (item.user_rating ?? 6) : 3
+    const rating = item.user_rating ?? 6
+    // rating² ÷ 10 amplifies high ratings; in-progress items get a flat 3
+    const weight = item.status === 'completed' ? (rating * rating) / 10 : 3
     for (const segment of item.genre.split(',')) {
       const genre = segment.trim()
       if (genre === '' || genre === 'N/A') continue
@@ -59,8 +68,20 @@ export function topGenreWithReason(
     }
   }
   const entries = Object.entries(scores)
-  if (entries.length === 0) return null
+  if (entries.length === 0) return []
   entries.sort(([, a], [, b]) => b - a)
-  const top = entries[0][0]
-  return { genre: top, reason: `Because you love ${top}` }
+  return entries.slice(0, limit).map(([genre]) => ({
+    genre,
+    score: scores[genre],
+    reason: `Because you love ${genre}`,
+  }))
+}
+
+/** @deprecated use topGenresWithScores */
+export function topGenreWithReason(
+  items: Pick<MediaItem, 'genre' | 'user_rating' | 'status'>[]
+): { genre: string; reason: string } | null {
+  const results = topGenresWithScores(items, 1)
+  if (results.length === 0) return null
+  return { genre: results[0].genre, reason: results[0].reason }
 }
