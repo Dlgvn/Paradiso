@@ -59,8 +59,10 @@ export function topGenresWithScores(
   for (const item of items) {
     if (item.genre == null) continue
     const rating = item.user_rating ?? 6
-    // rating² ÷ 10 amplifies high ratings; in-progress items get a flat 3
-    const weight = item.status === 'completed' ? (rating * rating) / 10 : 3
+    // rating² ÷ 10 amplifies high ratings; watchlist = strong intent (5); in-progress = mild (3)
+    const weight =
+      item.status === 'completed' ? (rating * rating) / 10 :
+      item.status === 'watchlist' ? 5 : 3
     for (const segment of item.genre.split(',')) {
       const genre = segment.trim()
       if (genre === '' || genre === 'N/A') continue

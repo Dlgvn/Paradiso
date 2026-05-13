@@ -57,6 +57,12 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
 
   const existingIds = new Set(items.map(i => i.external_id))
 
+  // Pick up to 2 watchlist movies to drive the director bonus lane
+  const watchlistMovieIds = items
+    .filter(i => i.status === 'watchlist' && i.media_type === 'movie' && i.external_id)
+    .slice(0, 2)
+    .map(i => i.external_id)
+
   // Assign genres to media types in a round-robin interleave so each type
   // draws from different genres. With 3 genres [g0, g1, g2]:
   //   movies  → g0, g1
@@ -67,16 +73,27 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
   const seriesGenres = [g(1), g(2)].filter((v, i, a) => a.indexOf(v) === i)
   const bookGenres   = [g(0), g(2)].filter((v, i, a) => a.indexOf(v) === i)
 
-  // Search all genre×type combos in parallel
+  // Search all genre×type combos + fetch watchlist movie details in parallel
   const movieSearches  = movieGenres.map(g  => searchOmdb(g.genre, 'movie'))
   const seriesSearches = seriesGenres.map(g => searchOmdb(g.genre, 'series'))
   const bookSearches   = bookGenres.map(g   => searchOpenLibrary(g.genre))
 
-  const [movieResults, seriesResults, bookResults] = await Promise.all([
+  const [movieResults, seriesResults, bookResults, watchlistDetailsRes] = await Promise.all([
     Promise.allSettled(movieSearches),
     Promise.allSettled(seriesSearches),
     Promise.allSettled(bookSearches),
+    Promise.allSettled(watchlistMovieIds.map(id => getOmdbDetails(id))),
   ])
+
+  // Extract directors from watchlist movies, then search for more by those directors
+  const directors = watchlistDetailsRes
+    .filter(r => r.status === 'fulfilled')
+    .map(r => (r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value.director)
+    .filter((d): d is string => !!d)
+
+  const directorSearchRes = await Promise.allSettled(
+    directors.map(d => searchOmdb(d, 'movie'))
+  )
 
   // Collect IDs interleaved across genres, deduplicating seen IDs
   function collectIds(
@@ -137,12 +154,39 @@ export async function getRecommendations(): Promise<GetRecommendationsResult> {
     seriesIds.map((id, i) => [id, seriesGenres[i % seriesGenres.length].reason])
   )
 
+  // Collect director bonus IDs (1 per director, not already in genre results or library)
+  const genreMovieIdSet = new Set(movieIds)
+  const directorBonusIds: { id: string; director: string }[] = []
+  for (let di = 0; di < directorSearchRes.length; di++) {
+    const res = directorSearchRes[di]
+    if (res.status !== 'fulfilled' || res.value.error) continue
+    for (const r of res.value.results) {
+      if (!existingIds.has(r.imdbID) && !genreMovieIdSet.has(r.imdbID)) {
+        directorBonusIds.push({ id: r.imdbID, director: directors[di] })
+        break
+      }
+    }
+  }
+
+  const directorBonusDetailsRes = await Promise.allSettled(
+    directorBonusIds.map(b => getOmdbDetails(b.id))
+  )
+
   const movies: RecommendationCandidate[] = movieDetailsRes
     .filter(r => r.status === 'fulfilled')
     .map(r => {
       const detail = (r as PromiseFulfilledResult<Awaited<ReturnType<typeof getOmdbDetails>>>).value
       return detailToCandidate(detail, movieIdToReason.get(detail.imdbId) ?? topGenres[0].reason)
     })
+
+  // Append director bonus results (up to 2 extra slots)
+  for (let di = 0; di < directorBonusDetailsRes.length; di++) {
+    const res = directorBonusDetailsRes[di]
+    if (res.status !== 'fulfilled') continue
+    const detail = res.value
+    if (movies.some(m => m.externalId === detail.imdbId)) continue
+    movies.push(detailToCandidate(detail, `Because you want to watch films by ${directorBonusIds[di].director}`))
+  }
 
   const series: RecommendationCandidate[] = seriesDetailsRes
     .filter(r => r.status === 'fulfilled')
